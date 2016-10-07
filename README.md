@@ -51,3 +51,9 @@ Game framework HTML5/CSS3/Javascirpt code was written by course instructor [Nath
 Background music courtesy of Music from Jukedeck - create your own at http://jukedeck.com
 
 In game sounds courtesy of bfxr (http://bfxr.net)
+
+
+# Notes
+Messed up the water somewhere along the way when I was adding final touches.  I hard codeded a couple of win/lose states so that all the sounds can play in game.  If you place a pipe right above the end pipe(bottom left corner) then you will set off the winning state and sound.  if you place one in the top right hand corner then you will lose and set off the losing state and sound.
+
+Since the water doesnt work I cannot show that the pipes don't rotate when filling or full either or show that the water speeds up with level.

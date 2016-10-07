@@ -1,5 +1,7 @@
 "use strict";
 
+const MS_PER_FRAME = 1000/20;
+
 /* Classes */
 const Game = require('./game');
 const StartPipe = require('./startPipe.js');
@@ -17,16 +19,20 @@ var grid = new Array(144);
 grid[0] = new StartPipe({x: 0, y: 0});
 grid[143] = new EndPipe({x: 660, y: 660});
 var next = new CornerPipe(0);
+var waterSpeed = 1;
 
+var startTimer = 10;
+var timer = 0;
+var state = "start";
 var score = 0;
 var level = 1;
 
-// SOUNDS - ADD BACKGROUND SOUND TO ASSETS
-var backgroundSound = new Audio();
-backgroundSound.src = 'assets/backgroundMusic.mp3';
-backgroundSound.loop = true;
-backgroundSound.volume = 0.3;
-backgroundSound.play();
+// SOUNDS
+var backgroundMusic = new Audio();
+backgroundMusic.src = 'assets/backgroundMusic.mp3';
+backgroundMusic.loop = true;
+backgroundMusic.volume = 0.3;
+backgroundMusic.play();
 var win = new Audio();
 win.src = 'assets/win.wav';
 var lose = new Audio();
@@ -45,6 +51,9 @@ canvas.onclick = function(event) {
   if (grid[findGrid({x: x, y: y})] == null && x < 720){
 	placeNext(findGrid({x: x, y: y}));
 	place.play();
+  }
+  if(state == "start"){
+	  state = 'countdown';
   }
 }
 
@@ -85,26 +94,21 @@ function placeNext(number){
 	switch(Math.floor(Math.random()*13))
 	{
 		case 0:
-			next = new CrossPipe(0);
-			break;
+			
 		case 1:
 		case 2:
-		case 3:
-			next = new StraightPipe(Math.floor(Math.random()*4));
+			next = new CrossPipe(0);
 			break;
+		case 3:
 		case 4:
 		case 5:
 		case 6:
-			next = new CornerPipe(Math.floor(Math.random()*4));
+			next = new StraightPipe(Math.floor(Math.random()*4));
 			break;
 		case 7:
 		case 8:
 		case 9:
-			next = new CornerPipe(Math.floor(Math.random()*4));
-			break;
 		case 10:
-			next = new CornerPipe(Math.floor(Math.random()*4));
-			break;
 		case 11:
 		case 12:
 			next = new CornerPipe(Math.floor(Math.random()*4));
@@ -137,7 +141,176 @@ masterLoop(performance.now());
 function update(elapsedTime) {
 
   // TODO: Advance the fluid
+  switch(state){
+	  case 'start':
+		  break;
+	  case 'countdown':
+	  timer += elapsedTime;
+		  if (timer > 1000){
+			  timer = 0;
+			  startTimer--;
+		  }
+		  
+		  if(startTimer <= 0){
+			  state = 'running';
+		  }
+		  break;
+	  case 'won':
+		  timer += elapsedTime;
+		  if (timer > MS_PER_FRAME) {
+			  timer = 0;
+			  fillPipes();
+			  state = 'start';
+			  score += 10;
+			  waterSpeed++;
+			  levelScore = 23;
+			  grid = new Array(169);
+			  grid[29] = new PipeConnect({x: 388, y: 128, piece: 0});
+			  grid[139] = new PipeConnect({x: 772, y: 640, piece: 1});
+		  }
+		  break;
+	  case 'lost':
+		  timer += elapsedTime;
+		  if (timer > MS_PER_FRAME) {
+			  timer = 0;
+			  fillPipes();
+			  flashTimer++;
+			  if(flashTimer >= 20){
+				  flashTimer = 0;
+				  state = 'start';
+				  score = 0;
+				  waterSpeed = 1;
+				  levelScore = 23;
+				  grid = new Array(169);
+				  grid[29] = new PipeConnect({x: 388, y: 128, piece: 0});
+				  grid[139] = new PipeConnect({x: 772, y: 640, piece: 1});
+				  next = new PipeCross(0);
+			  }
+		  }
+		  break;
+	  case 'running':
+		  timer += elapsedTime;
+		  if (timer > MS_PER_FRAME) {
+			  timer = 0;
+			  fillPipes();
+		  }
+		  break;
+  }  
+	if(grid[131] != null){
+		state = 'win';
+		backgroundMusic.volume = 0;
+		win.play();
+		timer += elapsedTime;
+		  if (timer > 1000){
+			  win.volume = 0;
+		  }
+	}
+	if(grid[11] != null){
+		state = 'lose';
+		backgroundMusic.volume = 0;
+		lose.play();
+		timer += elapsedTime;
+		  if (timer > 1000){
+			  lose.volume = 0;
+		  }
+		  
+	}
+  
 }
+
+
+function fillPipes(){
+	var lose = true;
+	for(var i = 0; i < grid.length; i++){
+		if(grid[i] != null){
+			var exit = grid[i].getExits();
+			switch(grid[i].getState()){
+				case 'full':
+					if(exit[0] == 0){
+						if(i-13 >= 0){
+							if(grid[i-13] != null && grid[i-13].getState() == 'empty'){
+								grid[i-13].startFill(2);
+								grid[i-13].fill(waterSpeed);
+							}
+						}
+					}
+					if(exit[1] == 0){
+						if(i+1 < grid.length){
+							if(grid[i+1] != null && grid[i+1].getState() == 'empty'){
+								grid[i+1].startFill(3);
+								grid[i+1].fill(0);
+							}
+						}
+					}
+					if(exit[2] == 0){
+						if(i+13 < grid.length){
+							if(grid[i+13] != null && grid[i+13].getState() == 'empty'){
+								grid[i+13].startFill(0);
+								grid[i+13].fill(0);
+							}
+						}
+					}
+					if(exit[3] == 0){
+						if(i-1 >= 0){
+							if(grid[i-1] != null && grid[i-1].getState() == 'empty'){
+								grid[i-1].startFill(1);
+								grid[i-1].fill(waterSpeed);
+							}
+						}
+					}
+					break;
+				case 'filling':
+					lose = false;
+					var overFill = grid[i].fill(waterSpeed);
+					if(overFill >= 0){
+						if(exit[0] == 0){
+							if(i-13 >= 0){
+								if(grid[i-13] != null && grid[i-13].getState() != 'full'){
+									grid[i-13].startFill(2);
+									grid[i-13].fill(overFill);
+								}
+							}
+						}
+						if(exit[1] == 0){
+							if(i+1 < grid.length){
+								if(grid[i+1] != null && grid[i+1].getState() != 'full'){
+									grid[i+1].startFill(3);
+									grid[i+1].fill(overFill-waterSpeed);
+								}
+							}
+						}
+						if(exit[2] == 0){
+							if(i+13 < grid.length){
+								if(grid[i+13] != null && grid[i+13].getState() != 'full'){
+									grid[i+13].startFill(0);
+									grid[i+13].fill(overFill-waterSpeed);
+								}
+							}
+						}
+						if(exit[3] == 0){
+							if(i-1 >= 0){
+								if(grid[i-1] != null && grid[i-1].getState() != 'full'){
+									grid[i-1].startFill(1);
+									grid[i-1].fill(overFill);
+								}
+							}
+						}
+					}
+					break;
+			}
+		}
+	if(lose) {
+		if(state == 'running') 
+		lose.play();
+		state = 'lost';
+	}
+	if(grid[143].getState() != 'empty') {
+		win.play();
+		state = 'won';
+	}
+}
+}
+
 
 /**
   * @function render
@@ -176,6 +349,24 @@ function render(elapsedTime, ctx) {
   // SCORE
   ctx.fillText("SCORE", 745, 530);
   ctx.fillText(score,760, 560);
+  
+  // WIN
+  if(state == "win"){
+	  ctx.fillText("WINNER", 745, 230);
+  }
+  
+  // LOSE
+  if(state == "lose"){
+	  ctx.fillText("LOSER", 745, 230);
+  }
+  
+  // COUNTDOWN
+  if(startTimer > 0){
+	  ctx.fillStyle = "black";
+	  ctx.font = "12px Arial";
+	  ctx.fillText("H2O INCOMING...",730, 680);
+	  ctx.fillText(startTimer,765, 700);
+  }
   
   // GRID
   var y = 0;
